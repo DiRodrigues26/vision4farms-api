@@ -33,7 +33,7 @@ class LandSerializer(serializers.ModelSerializer):
         fields = [
             'land_id', 'land_name', 'land_slug', 'land_location', 'land_gps',
             'land_sketch', 'land_size', 'land_inclination', 'land_sun_exposure',
-            'land_elevation', 'land_water', 'land_notes', 'land_status',
+            'land_elevation', 'land_levels', 'land_water', 'land_notes', 'land_status',
             'current_farm', 'soil_analyses', 'created_at',
         ]
 
@@ -43,7 +43,7 @@ class LandCreateSerializer(serializers.ModelSerializer):
         model = Lands
         fields = [
             'land_name', 'land_location', 'land_gps', 'land_sketch', 'land_size',
-            'land_inclination', 'land_sun_exposure', 'land_elevation',
+            'land_inclination', 'land_sun_exposure', 'land_elevation', 'land_levels',
             'land_water', 'land_notes', 'land_status', 'current_farm',
         ]
 
