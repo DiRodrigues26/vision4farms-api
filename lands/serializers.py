@@ -1,7 +1,7 @@
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import serializers
-from .models import Lands, LandsSoilAnalysis
+from .models import Lands, LandsSoilAnalysis, WaterUsageLog
 
 
 SOIL_NUTRIENT_FIELDS = [
@@ -27,6 +27,9 @@ class SoilAnalysisSerializer(serializers.ModelSerializer):
 
 class LandSerializer(serializers.ModelSerializer):
     soil_analyses = SoilAnalysisSerializer(many=True, read_only=True)
+    last_irrigation = serializers.SerializerMethodField()
+    activity_count = serializers.SerializerMethodField()
+    crops = serializers.SerializerMethodField()
 
     class Meta:
         model = Lands
@@ -35,7 +38,40 @@ class LandSerializer(serializers.ModelSerializer):
             'land_sketch', 'land_size', 'land_inclination', 'land_sun_exposure',
             'land_elevation', 'land_levels', 'land_water', 'land_notes', 'land_status',
             'current_farm', 'soil_analyses', 'created_at',
+            'last_irrigation', 'activity_count', 'crops',
         ]
+
+    def get_last_irrigation(self, obj):
+        last = (
+            WaterUsageLog.objects
+            .filter(land_id=obj.land_id, deleted_at__isnull=True)
+            .order_by('-water_usage_usage_date')
+            .values_list('water_usage_usage_date', flat=True)
+            .first()
+        )
+        return last.isoformat() if last else None
+
+    def get_activity_count(self, obj):
+        from activities.models import Activities
+        return Activities.objects.filter(
+            land_id=obj.land_id,
+            deleted_at__isnull=True,
+        ).count()
+
+    def get_crops(self, obj):
+        from yields_app.models import Yields
+        from crops.models import Crops
+        yields = Yields.objects.filter(
+            land_id=obj.land_id,
+            yield_status=1,
+            deleted_at__isnull=True,
+        ).values_list('crop_id', flat=True)
+        if not yields:
+            return []
+        crop_rows = Crops.objects.filter(
+            crop_id__in=list(yields),
+        ).values('crop_id', 'crop_name')
+        return [{'crop_id': c['crop_id'], 'crop_name': c['crop_name']} for c in crop_rows]
 
 
 class LandCreateSerializer(serializers.ModelSerializer):
