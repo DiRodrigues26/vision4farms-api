@@ -42,36 +42,44 @@ class LandSerializer(serializers.ModelSerializer):
         ]
 
     def get_last_irrigation(self, obj):
-        last = (
-            WaterUsageLog.objects
-            .filter(land_id=obj.land_id, deleted_at__isnull=True)
-            .order_by('-water_usage_usage_date')
-            .values_list('water_usage_usage_date', flat=True)
-            .first()
-        )
-        return last.isoformat() if last else None
+        try:
+            last = (
+                WaterUsageLog.objects
+                .filter(land_id=obj.land_id, deleted_at__isnull=True)
+                .order_by('-water_usage_usage_date')
+                .values_list('water_usage_usage_date', flat=True)
+                .first()
+            )
+            return last.isoformat() if last else None
+        except Exception:
+            return None
 
     def get_activity_count(self, obj):
-        from activities.models import Activities
-        return Activities.objects.filter(
-            land_id=obj.land_id,
-            deleted_at__isnull=True,
-        ).count()
+        try:
+            from activities.models import Activities
+            return Activities.objects.filter(
+                land_id=obj.land_id,
+                deleted_at__isnull=True,
+            ).count()
+        except Exception:
+            return 0
 
     def get_crops(self, obj):
-        from yields_app.models import Yields
-        from crops.models import Crops
-        yields = Yields.objects.filter(
-            land_id=obj.land_id,
-            yield_status=1,
-            deleted_at__isnull=True,
-        ).values_list('crop_id', flat=True)
-        if not yields:
+        try:
+            from yields_app.models import Yields
+            from crops.models import Crops
+            yields = list(Yields.objects.filter(
+                land_id=obj.land_id,
+                deleted_at__isnull=True,
+            ).values_list('crop_id', flat=True))
+            if not yields:
+                return []
+            crop_rows = Crops.objects.filter(
+                crop_id__in=yields,
+            ).values('crop_id', 'crop_name')
+            return [{'crop_id': c['crop_id'], 'crop_name': c['crop_name']} for c in crop_rows]
+        except Exception:
             return []
-        crop_rows = Crops.objects.filter(
-            crop_id__in=list(yields),
-        ).values('crop_id', 'crop_name')
-        return [{'crop_id': c['crop_id'], 'crop_name': c['crop_name']} for c in crop_rows]
 
 
 class LandCreateSerializer(serializers.ModelSerializer):
