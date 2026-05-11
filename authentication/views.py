@@ -47,37 +47,50 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        username = serializer.validated_data['username']
-        password = serializer.validated_data['password']
+        import traceback
+        import logging
+        logger = logging.getLogger(__name__)
 
         try:
-            user = Users.objects.get(username=username)
-        except Users.DoesNotExist:
-            return Response({'detail': 'Credenciais inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
+            serializer = LoginSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if user.user_status != 1:
-            return Response({'detail': 'Conta inativa.'}, status=status.HTTP_403_FORBIDDEN)
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
 
-        if not check_password(password, user.password_hash):
-            return Response({'detail': 'Credenciais inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
+            try:
+                user = Users.objects.get(username=username)
+            except Users.DoesNotExist:
+                return Response({'detail': 'Credenciais inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        try:
-            LoginHistory.objects.create(
-                user=user,
-                login_ip=request.META.get('REMOTE_ADDR', '0.0.0.0'),
-                login_device=request.META.get('HTTP_USER_AGENT', 'unknown')[:45],
-                login_location='n/a',
-                login_status='success',
+            if user.user_status != 1:
+                return Response({'detail': 'Conta inativa.'}, status=status.HTTP_403_FORBIDDEN)
+
+            if not check_password(password, user.password_hash):
+                return Response({'detail': 'Credenciais inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            try:
+                LoginHistory.objects.create(
+                    user=user,
+                    login_ip=request.META.get('REMOTE_ADDR', '0.0.0.0'),
+                    login_device=request.META.get('HTTP_USER_AGENT', 'unknown')[:45],
+                    login_location='n/a',
+                    login_status='success',
+                )
+            except Exception:
+                pass  # histórico de login não deve bloquear o acesso
+
+            tokens = _get_tokens(user)
+            return Response({'user_id': user.user_id, 'username': user.username, **tokens})
+
+        except Exception as exc:
+            tb = traceback.format_exc()
+            logger.error('LoginView 500: %s\n%s', exc, tb)
+            return Response(
+                {'detail': f'Erro interno: {type(exc).__name__}: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        except Exception:
-            pass  # histórico de login não deve bloquear o acesso
-
-        tokens = _get_tokens(user)
-        return Response({'user_id': user.user_id, 'username': user.username, **tokens})
 
 
 # ── Registo (só por convite) ───────────────────────────────
