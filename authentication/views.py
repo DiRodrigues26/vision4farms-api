@@ -65,13 +65,16 @@ class LoginView(APIView):
         if not check_password(password, user.password_hash):
             return Response({'detail': 'Credenciais inválidas.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        LoginHistory.objects.create(
-            user=user,
-            login_ip=request.META.get('REMOTE_ADDR', '0.0.0.0'),
-            login_device=request.META.get('HTTP_USER_AGENT', 'unknown')[:45],
-            login_location='n/a',
-            login_status='success',
-        )
+        try:
+            LoginHistory.objects.create(
+                user=user,
+                login_ip=request.META.get('REMOTE_ADDR', '0.0.0.0'),
+                login_device=request.META.get('HTTP_USER_AGENT', 'unknown')[:45],
+                login_location='n/a',
+                login_status='success',
+            )
+        except Exception:
+            pass  # histórico de login não deve bloquear o acesso
 
         tokens = _get_tokens(user)
         return Response({'user_id': user.user_id, 'username': user.username, **tokens})
@@ -167,7 +170,16 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(MeSerializer(request.user).data)
+        try:
+            return Response(MeSerializer(request.user).data)
+        except Exception as e:
+            # Fallback se o perfil ou algum campo falhar
+            return Response({
+                'user_id': request.user.user_id,
+                'username': request.user.username,
+                'user_status': request.user.user_status,
+                'profile': None,
+            })
 
 
 # ── Refresh ────────────────────────────────────────────────
