@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/yields/',        include('yields_app.urls')),  # ← NOVO
     path('api/agenda/',        include('agenda.urls')),
     path('api/water/',         include('lands.water_urls')),
+    path('api/sensors/',       include('sensors.urls')),
 ]
 
 if settings.DEBUG:

@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'map',
     'yields_app',
     'agenda',
+    'sensors',
 ]
 
 MIDDLEWARE = [
