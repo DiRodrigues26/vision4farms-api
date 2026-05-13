@@ -28,6 +28,22 @@ class Notifications(models.Model):
         return self.notification_title
 
 
+class FcmTokens(models.Model):
+    token_id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(Users, models.DO_NOTHING, related_name='fcm_tokens')
+    token = models.CharField(max_length=255, unique=True)
+    device = models.CharField(max_length=45, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        managed = False
+        db_table = 'fcm_tokens'
+
+    def __str__(self):
+        return f'{self.token[:20]}… ({self.user_id})'
+
+
 class NotificationPreferences(models.Model):
     pref_id = models.AutoField(primary_key=True)
     user = models.OneToOneField(Users, models.DO_NOTHING, related_name='notification_preferences')
