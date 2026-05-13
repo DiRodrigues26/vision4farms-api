@@ -3,7 +3,7 @@ from .views import (
     NotificationListView, NotificationMarkReadView,
     NotificationToggleReadView, NotificationPreferencesView,
     SensorAlertNotificationView,
-    FcmTokenRegisterView, FcmTokenDeleteView,
+    FcmTokenRegisterView, FcmTokenDeleteView, FcmDebugView,
 )
 
 urlpatterns = [
@@ -14,4 +14,5 @@ urlpatterns = [
     path('sensor-alert/', SensorAlertNotificationView.as_view(), name='sensor-alert-create'),
     path('devices/', FcmTokenRegisterView.as_view(), name='fcm-register'),
     path('devices/<str:token>/', FcmTokenDeleteView.as_view(), name='fcm-unregister'),
+    path('debug/fcm/', FcmDebugView.as_view(), name='fcm-debug'),
 ]

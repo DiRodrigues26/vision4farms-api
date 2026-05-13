@@ -82,28 +82,76 @@ def _ensure_initialized() -> bool:
             return False
 
 
+def fcm_status() -> dict:
+    """Devolve estado do FCM para debugging."""
+    has_env = bool(os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON'))
+    candidate_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'firebase-service-account.json',
+    )
+    has_file = os.path.exists(candidate_file)
+    initialized = _ensure_initialized()
+    project_id = None
+    if initialized:
+        try:
+            default_app = firebase_admin.get_app()
+            project_id = default_app.project_id
+        except Exception as e:
+            logger.error('Erro a ler default_app: %s', e)
+    return {
+        'firebase_admin_initialized': initialized,
+        'project_id': project_id,
+        'credentials_source': (
+            'env_var' if has_env else ('file' if has_file else 'none')
+        ),
+    }
+
+
 def send_push_to_user(
     user_id: int,
     title: str,
     body: str,
     data: Optional[dict[str, Any]] = None,
-) -> int:
+    return_details: bool = False,
+):
     """Envia push para todos os tokens registados deste utilizador.
 
-    Devolve o número de tokens para os quais o envio teve sucesso.
+    Devolve o número de tokens para os quais o envio teve sucesso. Se
+    ``return_details=True``, devolve dict com detalhes incluindo erros
+    por token (útil para debugging).
     Tokens inválidos são removidos automaticamente da BD.
     """
+    details: dict[str, Any] = {
+        'firebase_initialized': False,
+        'tokens_total': 0,
+        'success': 0,
+        'failures': [],
+        'errors': [],
+    }
+
     if not _ensure_initialized():
-        return 0
+        details['errors'].append(
+            'Firebase Admin SDK sem credenciais ou falha a inicializar.'
+        )
+        logger.warning(
+            '[FCM] sem credenciais — push para user %s ignorada.', user_id
+        )
+        return details if return_details else 0
+    details['firebase_initialized'] = True
 
     tokens_qs = FcmTokens.objects.filter(user_id=user_id)
     tokens = list(tokens_qs.values_list('token', flat=True))
+    details['tokens_total'] = len(tokens)
     if not tokens:
-        return 0
+        logger.info('[FCM] user %s sem tokens registados.', user_id)
+        return details if return_details else 0
 
     payload = {k: str(v) for k, v in (data or {}).items()}
+    logger.info(
+        '[FCM] a enviar para user=%s, %d tokens, title=%r',
+        user_id, len(tokens), title,
+    )
 
-    # Em batches de 500 (limite FCM por chamada send_each_for_multicast)
     success = 0
     failed_tokens: list[str] = []
     for i in range(0, len(tokens), 500):
@@ -128,17 +176,32 @@ def send_push_to_user(
                     success += 1
                 else:
                     err = resp.exception
-                    code = getattr(err, 'code', '')
+                    code = getattr(err, 'code', '') or ''
+                    err_msg = f'{type(err).__name__}: {err}'
+                    details['failures'].append({
+                        'token_prefix': chunk[idx][:20] + '...',
+                        'error': err_msg,
+                        'code': code,
+                    })
                     if code in (
                         'registration-token-not-registered',
                         'invalid-argument',
                     ):
                         failed_tokens.append(chunk[idx])
-                    logger.info('FCM falhou para token: %s', err)
+                    logger.info(
+                        '[FCM] falhou para token (%s): %s', code, err
+                    )
         except Exception as e:
-            logger.error('Erro a enviar FCM batch: %s', e)
+            details['errors'].append(f'{type(e).__name__}: {e}')
+            logger.error('[FCM] erro a enviar batch: %s', e)
 
     if failed_tokens:
         FcmTokens.objects.filter(token__in=failed_tokens).delete()
+        details['removed_invalid_tokens'] = len(failed_tokens)
 
-    return success
+    details['success'] = success
+    logger.info(
+        '[FCM] resultado user=%s: %d sucessos, %d falhas',
+        user_id, success, len(details['failures']),
+    )
+    return details if return_details else success

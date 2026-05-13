@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework import serializers
 
 from farms.permissions import _get_user_role
+from .fcm import fcm_status, send_push_to_user
 from .models import Notifications, NotificationPreferences, FcmTokens
 
 
@@ -167,6 +168,51 @@ class FcmTokenDeleteView(APIView):
             token=token,
         ).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FcmDebugView(APIView):
+    """GET /api/notifications/debug/fcm/  → estado FCM + tokens do user
+    POST /api/notifications/debug/fcm/ → envia push de teste para o user
+
+    Apenas para diagnóstico em produção; retorna info detalhada de erros.
+    """
+
+    def get(self, request):
+        tokens = list(
+            FcmTokens.objects.filter(user=request.user).values(
+                'token_id', 'device', 'created_at', 'updated_at'
+            )
+        )
+        for t in tokens:
+            t['created_at'] = t['created_at'].isoformat() if t['created_at'] else None
+            t['updated_at'] = t['updated_at'].isoformat() if t['updated_at'] else None
+
+        return Response({
+            'fcm': fcm_status(),
+            'user_id': request.user.user_id,
+            'tokens_count': len(tokens),
+            'tokens': tokens,
+        })
+
+    def post(self, request):
+        title = request.data.get('title') or '🧪 Teste Vision4Farms'
+        body = request.data.get('body') or (
+            'Esta é uma push de teste. Se a vês, FCM está a funcionar.'
+        )
+        result = send_push_to_user(
+            user_id=request.user.user_id,
+            title=title,
+            body=body,
+            data={'type': 'debug_test'},
+            return_details=True,
+        )
+        return Response({
+            'fcm': fcm_status(),
+            'sent_to_user': request.user.user_id,
+            'title': title,
+            'body': body,
+            'result': result,
+        })
 
 
 class NotificationPreferencesSerializer(serializers.ModelSerializer):
