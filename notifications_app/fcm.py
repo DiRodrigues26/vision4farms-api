@@ -164,7 +164,7 @@ def send_push_to_user(
                     data=payload,
                     android=messaging.AndroidConfig(
                         priority='high',
-                        notification=messaging.AndroidNotificationConfig(
+                        notification=messaging.AndroidNotification(
                             channel_id='vision4farms_default',
                             sound='default',
                         ),
