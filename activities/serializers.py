@@ -7,16 +7,43 @@ from .models import Activities, Observations
 
 class ObservationSerializer(serializers.ModelSerializer):
     land_name = serializers.CharField(source='land.land_name', read_only=True)
+    crop_name = serializers.SerializerMethodField()
+    yield_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Observations
         fields = [
             'observation_id', 'farm', 'land', 'land_name', 'yield_id',
+            'crop_name', 'yield_name',
             'observation_text', 'observation_photo', 'observation_gps',
             'estado_fenologico', 'numero_armadilha', 'qt_detetada',
             'praga_fungo', 'created_at',
         ]
-        read_only_fields = ['observation_id', 'created_at', 'land_name']
+        read_only_fields = [
+            'observation_id', 'created_at', 'land_name',
+            'crop_name', 'yield_name',
+        ]
+
+    def _get_yield(self, obj):
+        if not obj.yield_id:
+            return None
+        from yields_app.models import Yields
+        return Yields.objects.filter(
+            yield_id=obj.yield_id,
+            deleted_at__isnull=True,
+        ).first()
+
+    def get_yield_name(self, obj):
+        y = self._get_yield(obj)
+        return y.yield_name if y else None
+
+    def get_crop_name(self, obj):
+        y = self._get_yield(obj)
+        if not y or not y.crop_id:
+            return None
+        from crops.models import Crops
+        crop = Crops.objects.filter(crop_id=y.crop_id).first()
+        return crop.crop_name if crop else None
 
     def create(self, validated_data):
         request = self.context.get('request')
