@@ -4,7 +4,9 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(*nuohnd)pyj3dl@mlf3ceild#8hmz!0s23m!hm3u_a@2zg^ng')
+# Em produção, define SECRET_KEY como variável de ambiente no Railway.
+# O fallback abaixo é apenas para desenvolvimento local.
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-only-local-key')
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
@@ -60,7 +62,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.environ.get('MYSQL_DATABASE', 'vision4farms'),
         'USER': os.environ.get('MYSQL_USER', 'root'),
-        'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'root123'),
+        'PASSWORD': os.environ.get('MYSQL_PASSWORD', ''),
         'HOST': os.environ.get('MYSQL_HOST', '127.0.0.1'),
         'PORT': os.environ.get('MYSQL_PORT', '3306'),
         'OPTIONS': {
@@ -106,9 +108,10 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'diogo.basket.26@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'skua ebnk fzeq ruov')
-DEFAULT_FROM_EMAIL = f'Vision4Farms <{os.environ.get("EMAIL_HOST_USER", "diogo.basket.26@gmail.com")}>'
+# Credenciais de email devem vir de variáveis de ambiente (Railway).
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = f'Vision4Farms <{EMAIL_HOST_USER}>'
 
 # ── Internacionalização ────────────────────────────────────
 LANGUAGE_CODE = 'pt-pt'
