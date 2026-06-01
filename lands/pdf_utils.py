@@ -1,6 +1,7 @@
 """Geração de PDFs para análises e colheitas usando ReportLab."""
 import io
 from datetime import datetime
+from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -15,6 +16,31 @@ GREEN = colors.HexColor('#2E7D32')
 LIGHT_GREEN = colors.HexColor('#E8F5E9')
 GREY = colors.HexColor('#9E9E9E')
 TEXT_PRIMARY = colors.HexColor('#1B1B1B')
+
+
+# Subscripts/superscripts Unicode → ASCII (Helvetica Type 1 não os tem)
+_UNICODE_REPLACEMENTS = {
+    '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4',
+    '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9',
+    '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+    '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+}
+
+
+def _safe(s):
+    """Devolve string segura: substitui caracteres Unicode sem glifo,
+    converte None em '—'."""
+    if s is None or s == '':
+        return '—'
+    text = str(s)
+    for src, dst in _UNICODE_REPLACEMENTS.items():
+        text = text.replace(src, dst)
+    return text
+
+
+def _para_safe(s):
+    """Versão escapada para XML — para uso em Paragraph()."""
+    return _xml_escape(_safe(s))
 
 
 def _styles():
@@ -36,7 +62,7 @@ def _styles():
 
 def _kv_table(rows, col_widths=None):
     """rows: list of (label, value) tuples. Returns a Table."""
-    data = [[label, _fmt(value)] for label, value in rows]
+    data = [[_safe(label), _fmt(value)] for label, value in rows]
     t = Table(data, colWidths=col_widths or [6 * cm, 10 * cm])
     t.setStyle(TableStyle([
         ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
@@ -53,16 +79,14 @@ def _kv_table(rows, col_widths=None):
 
 
 def _fmt(v):
-    if v is None or v == '':
-        return '—'
-    return str(v)
+    return _safe(v)
 
 
 def _header(styles, title, subtitle):
     return [
         Paragraph('Vision4Farms', styles['Subtle']),
-        Paragraph(title, styles['TitleGreen']),
-        Paragraph(subtitle, styles['Subtle']),
+        Paragraph(_para_safe(title), styles['TitleGreen']),
+        Paragraph(_para_safe(subtitle), styles['Subtle']),
         Spacer(1, 12),
     ]
 

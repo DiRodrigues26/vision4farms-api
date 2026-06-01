@@ -238,7 +238,18 @@ class YieldAnalysisPDFView(APIView):
         except Exception:
             pass
 
-        data = foliar_analysis_pdf(a, yield_name=yield_name)
+        try:
+            data = foliar_analysis_pdf(a, yield_name=yield_name)
+        except Exception as e:
+            import logging, traceback
+            logging.error(
+                '[YieldAnalysisPDF] erro a gerar PDF id=%s: %s\n%s',
+                analysis_id, e, traceback.format_exc(),
+            )
+            return Response(
+                {'detail': f'Erro a gerar PDF: {e}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         response = HttpResponse(data, content_type='application/pdf')
         response['Content-Disposition'] = (
             f'inline; filename="analise_foliar_{a.yield_analysis_id}.pdf"'
@@ -361,7 +372,18 @@ class HarvestPDFView(APIView):
         except Exception:
             pass
 
-        data = harvest_pdf(h, yield_name=yield_name)
+        try:
+            data = harvest_pdf(h, yield_name=yield_name)
+        except Exception as e:
+            import logging, traceback
+            logging.error(
+                '[HarvestPDF] erro a gerar PDF id=%s: %s\n%s',
+                harvest_id, e, traceback.format_exc(),
+            )
+            return Response(
+                {'detail': f'Erro a gerar PDF: {e}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         response = HttpResponse(data, content_type='application/pdf')
         response['Content-Disposition'] = (
             f'inline; filename="colheita_{h.harvest_id}.pdf"'

@@ -212,7 +212,18 @@ class SoilAnalysisPDFView(APIView):
         except Exception:
             pass
 
-        data = soil_analysis_pdf(a, land_name=land_name)
+        try:
+            data = soil_analysis_pdf(a, land_name=land_name)
+        except Exception as e:
+            import logging, traceback
+            logging.error(
+                '[SoilAnalysisPDF] erro a gerar PDF id=%s: %s\n%s',
+                analysis_id, e, traceback.format_exc(),
+            )
+            return Response(
+                {'detail': f'Erro a gerar PDF: {e}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         response = HttpResponse(data, content_type='application/pdf')
         response['Content-Disposition'] = (
             f'inline; filename="analise_solo_{a.soil_analysis_id}.pdf"'
