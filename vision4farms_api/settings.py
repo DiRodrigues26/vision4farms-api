@@ -63,7 +63,17 @@ DATABASES = {
         'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'root123'),
         'HOST': os.environ.get('MYSQL_HOST', '127.0.0.1'),
         'PORT': os.environ.get('MYSQL_PORT', '3306'),
-        'OPTIONS': {'charset': 'utf8mb4'},
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            # Falha rápido se a BD não responder, em vez de pendurar
+            # minutos no timeout TCP do SO.
+            'connect_timeout': 10,
+            'read_timeout': 15,
+            'write_timeout': 15,
+        },
+        # Fecha a ligação ao fim de cada request (evita ligações mortas
+        # reutilizadas após a BD hibernar/reiniciar).
+        'CONN_MAX_AGE': 0,
     }
 }
 
